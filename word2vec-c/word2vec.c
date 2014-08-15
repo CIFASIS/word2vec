@@ -34,6 +34,8 @@ struct vocab_word {
   char *word, *code, codelen;
 };
 
+FILE *fin;
+
 char train_file[MAX_STRING], output_file[MAX_STRING];
 char save_vocab_file[MAX_STRING], read_vocab_file[MAX_STRING];
 struct vocab_word *vocab;
@@ -284,10 +286,11 @@ void CreateBinaryTree() {
 
 void LearnVocabFromTrainFile() {
   char word[MAX_STRING];
-  FILE *fin;
+  //FILE *fin;
   long long a, i;
   for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;
-  fin = fopen(train_file, "rb");
+  //fin = fopen(train_file, "rb");
+  rewind(fin);
   if (fin == NULL) {
     printf("ERROR: training data file not found!\n");
     exit(1);
@@ -315,7 +318,7 @@ void LearnVocabFromTrainFile() {
     printf("Words in train file: %lld\n", train_words);
   }
   file_size = ftell(fin);
-  fclose(fin);
+  //fclose(fin);
 }
 
 void SaveVocab() {
@@ -329,18 +332,18 @@ void ReadVocab() {
   long long a, i = 0;
   char c;
   char word[MAX_STRING];
-  FILE *fin = fopen(read_vocab_file, "rb");
-  if (fin == NULL) {
+  FILE *fvb = fopen(read_vocab_file, "rb");
+  if (fvb == NULL) {
     printf("Vocabulary file not found\n");
     exit(1);
   }
   for (a = 0; a < vocab_hash_size; a++) vocab_hash[a] = -1;
   vocab_size = 0;
   while (1) {
-    ReadWord(word, fin);
-    if (feof(fin)) break;
+    ReadWord(word, fvb);
+    if (feof(fvb)) break;
     a = AddWordToVocab(word);
-    fscanf(fin, "%lld%c", &vocab[a].cn, &c);
+    fscanf(fvb, "%lld%c", &vocab[a].cn, &c);
     i++;
   }
   SortVocab();
@@ -348,14 +351,15 @@ void ReadVocab() {
     printf("Vocab size: %lld\n", vocab_size);
     printf("Words in train file: %lld\n", train_words);
   }
-  fin = fopen(train_file, "rb");
+  //fin = fopen(train_file, "rb");
+  rewind(fin);
   if (fin == NULL) {
     printf("ERROR: training data file not found!\n");
     exit(1);
   }
   fseek(fin, 0, SEEK_END);
   file_size = ftell(fin);
-  fclose(fin);
+  //fclose(fin);
 }
 
 void InitNet() {
@@ -400,7 +404,8 @@ void *TrainModelThread(void *id) {
   clock_t now;
   real *neu1 = (real *)calloc(layer1_size, sizeof(real));
   real *neu1e = (real *)calloc(layer1_size, sizeof(real));
-  FILE *fi = fopen(train_file, "rb");
+  rewind(fin);
+  FILE *fi = fin; //fopen(train_file, "rb");
   if (fi == NULL) {
     fprintf(stderr, "no such file or directory: %s", train_file);
     exit(1);
@@ -558,7 +563,7 @@ void *TrainModelThread(void *id) {
       continue;
     }
   }
-  fclose(fi);
+  //fclose(fi);
   free(neu1);
   free(neu1e);
   pthread_exit(NULL);
@@ -728,6 +733,8 @@ int main(int argc, char **argv) {
   if ((i = ArgPos((char *)"-threads", argc, argv)) > 0) num_threads = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-min-count", argc, argv)) > 0) min_count = atoi(argv[i + 1]);
   if ((i = ArgPos((char *)"-classes", argc, argv)) > 0) classes = atoi(argv[i + 1]);
+
+  fin = fopen(train_file, "rb");
   vocab = (struct vocab_word *)calloc(vocab_max_size, sizeof(struct vocab_word));
   vocab_hash = (int *)calloc(vocab_hash_size, sizeof(int));
   expTable = (real *)malloc((EXP_TABLE_SIZE + 1) * sizeof(real));
